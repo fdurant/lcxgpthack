@@ -1,13 +1,21 @@
 import streamlit as st
+import os
 import openai
+from langchain.llms import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
+
+from langchain.utilities import GoogleSerperAPIWrapper
+from langchain.agents import initialize_agent, Tool
+from langchain.agents import AgentType
+
 from time import strftime
 today_human = strftime("%a, %d %b %Y")
 
-
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 openai.api_key = OPENAI_API_KEY
+SERPER_API_KEY = st.secrets["SERPER_API_KEY"]
+os.environ['SERPAPI_API_KEY'] = SERPER_API_KEY
 
 location = st.selectbox(
     label='What is your location?',
@@ -42,7 +50,23 @@ ai_message = chat(INITIAL_CHAT_MODEL)
 st.title("SliceOfAdventure")
 st.markdown(ai_message.content)
 
-st.text_area(label="Fixed activity", value=f"Attend a kid friendly cultural event in {location}", label_visibility="hidden")
+prompt_agent = st.text_area(label="Fixed activity", value=f"Attend a kid friendly cultural event in {location}", label_visibility="hidden")
+
+llm = OpenAI(temperature=0)
+
+search = GoogleSerperAPIWrapper()
+tools = [
+    Tool(
+        name="Intermediate Answer",
+        func=search.run,
+        description="useful for when you need to ask with search"
+    )
+]
+
+self_ask_with_search = initialize_agent(tools, llm, agent=AgentType.SELF_ASK_WITH_SEARCH, verbose=True)
+result = self_ask_with_search.run(prompt_agent)
+
+st.write(result)
 
 if st.button('It works!'):
     st.balloons()
