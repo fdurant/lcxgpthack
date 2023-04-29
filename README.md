@@ -12,4 +12,5 @@ Edit `.streamlit/secrets.toml` so it looks like this:
 
 ````
 OPENAI_API_KEY = "your secret that no one else should know"
+SERPER_API_KEY = "idem"
 ````
