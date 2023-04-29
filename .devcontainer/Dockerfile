@@ -30,5 +30,3 @@ RUN cd && wget -O Miniforge3.sh https://github.com/conda-forge/miniforge/release
     rm Miniforge3.sh
 
 ENV PATH /home/vscode/miniforge3/bin:$PATH
-
-RUN conda install streamlit
