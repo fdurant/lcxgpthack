@@ -1,30 +1,17 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
-from langchain.llms import OpenAI
 import openai
+from langchain.chat_models import ChatOpenAI
+
+from prompts import INITIAL_CHAT_MODEL
 
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 openai.api_key = OPENAI_API_KEY
 
-llm = OpenAI(temperature=0.9)
+chat = ChatOpenAI(temperature=.7, openai_api_key=OPENAI_API_KEY)
+ai_message = chat(INITIAL_CHAT_MODEL)
 
-prompt_company_name = "What would be a good name for a hipster restaurant that bakes Pizzas and Waffles?"
-answer = llm(prompt=prompt_company_name)
-
-prompt_illustration = f"Front store of an expensive hipster restaurant with signage \"{answer}\""
-response = openai.Image.create(
-  prompt=prompt_illustration,
-  n=1,
-  size="1024x1024"
-)
-image_url = response['data'][0]['url']
-
-st.title('Basic Streamlit app')
-st.write(prompt_company_name)
-st.write(answer)
-
-st.image(image_url, caption=answer, width=None, use_column_width=None, clamp=False, channels="RGB", output_format="small")
+st.title("SliceOfAdventure")
+st.markdown(ai_message.content)
 
 if st.button('It works!'):
     st.balloons()
