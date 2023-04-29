@@ -63,7 +63,7 @@ tools = [
     )
 ]
 
-self_ask_with_search = initialize_agent(tools, llm, agent=AgentType.SELF_ASK_WITH_SEARCH, verbose=True)
+self_ask_with_search = initialize_agent(tools, llm, agent="zero-shot-react-description", verbose=False)
 result = self_ask_with_search.run(prompt_agent)
 
 st.write(result)
