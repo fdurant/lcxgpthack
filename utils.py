@@ -8,12 +8,10 @@ def get_location() -> List[float]:
     g = geocoder.ip('me')
     return g.latlng
 
-
 def get_country_code(lat: float, lon: float) -> Optional[Text]:
     geolocator = Nominatim(user_agent="my_app")
     location = geolocator.reverse((lat, lon), exactly_one=True)
     result = None
-    print(location.raw)
     if location:
         try:
             return location.raw['address']['country_code']
