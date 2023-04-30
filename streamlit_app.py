@@ -67,21 +67,52 @@ with st.form("my_form"):
 
         print (f"Final prompt: {final_prompt}")
 
+
+
+
+
         INITIAL_CHAT_MODEL = [
             SystemMessage(content="Act as a parent that is highly skilled in organising engaging past time activities for the family. You excell at finding and suggesting a wide range of family activities. You're great at finding both special activities to go do with the family but also in finding fun and creative ways to turn a munday day in the house into a fun experience."),
             HumanMessage(content="Your task is to help me plan a diverse calendar with activities for my family. Make sure to include all ranges of activies. For example, it can be everyday activities at home with the family, or also special activities or events in the neigborhood. Mix it up."),
             AIMessage(content="Tell me more about your family so I can provide suggestions tailored your needs and preferences."),
             HumanMessage(content=final_prompt),
-            AIMessage(content="I'll give three suggestions per day. I will structure everything in json. the json output will contain the days, as well as the events as per schema.org. I will add a flag to indicate if it is an indoor event."),
+            AIMessage(content="I'll return a json with 3 suggestion per day. Every suggestion should contain the descriptions of the activities, the names of the places, the url associated with those places, without any message after the json.")
         ]
-        #ai_message = chat(INITIAL_CHAT_MODEL)
-        #llm_result = ai_message.content
-        #st.markdown(ai_message.content)
+
+
+        from pydantic import BaseModel, Field, validator
+        from langchain.output_parsers import PydanticOutputParser
+
+        # Define your desired data structure.
+        class Activity(BaseModel):
+            day: str = Field(description="day of the week")
+            text: str = Field(description="description of the activity")
+            location_name: str = Field(description="named entity of the location")
+            
+        # Set up a parser + inject instructions into the prompt template.
+        parser = PydanticOutputParser(pydantic_object=Activity)
+        prompt = PromptTemplate(
+            template=INITIAL_CHAT_MODEL + "\n{format_instructions}",
+            partial_variables={"format_instructions": parser.get_format_instructions()}
+        )
+
+        # And a query intented to prompt a language model to populate the data structure.
+        joke_query = "Tell me a joke."
+        _input = prompt.format_prompt()
+
+
+        ai_message = chat(_input.to_string())
+        parsed = parser.parse(ai_message)
+        print(type(parsed))
+        print(parsed)
+        st.write(parsed)
+        
+        llm_result_str = ai_message.content
+
 
         
-        llm_result = { "Saturday": [ { "name": "Visit the Royal Palace of Brussels.", "url": "https://www.monarchie.be/en/visit-palace-brussels", "description": "Take a guided tour of the palace and learn about its history and architecture. You'll get to see the Throne Room, the Mirror Room, and the Goya Room. ", "indoor": True }, { "name": "Visit the Musée Magritte Museum.", "url": "https://www.fine-arts-museum.be/en/museums/musee-magritte-museum", "description": "Explore the surreal art of René Magritte. The museum has an extensive collection of his works, including paintings, drawings, and sculptures.", "indoor": True }, { "name": "Bois de la Cambre", "url": "https://visit.brussels/en/place/Bois-de-la-Cambre", "description": "Take a walk in the beautiful park and enjoy the nature. You can also have a picnic or rent a paddleboat on the lake.", "indoor": False } ], "Sunday": [ { "name": "Visit Mini-Europe.", "url": "https://www.minieurope.com/en/", "description": "Explore Europe's most famous landmarks in miniature form. The park has over 350 models, including the Eiffel Tower, the Atomium, and the Colosseum.", "indoor": True }, { "name": "Explore the Atomium.", "url": "https://www.atomium.be/", "description": "Visit the iconic Atomium, a unique example of mid-century modern architecture. You'll get to see the permanent exhibition, as well as temporary exhibitions.", "indoor": True }, { "name": "Visit Parc de Bruxelles", "url": "https://visit.brussels/en/place/Parc-de-Bruxelles", "description": "Take a walk in the beautiful park, feed the ducks and have a picnic or walk around the Royal Palace of Brussels.", "indoor": False } ] }
-        
-        #st.write(llm_result)
+        #llm_result = { "Saturday": [ { "name": "Visit the Royal Palace of Brussels.", "url": "https://www.monarchie.be/en/visit-palace-brussels", "description": "Take a guided tour of the palace and learn about its history and architecture. You'll get to see the Throne Room, the Mirror Room, and the Goya Room. ", "indoor": True }, { "name": "Visit the Musée Magritte Museum.", "url": "https://www.fine-arts-museum.be/en/museums/musee-magritte-museum", "description": "Explore the surreal art of René Magritte. The museum has an extensive collection of his works, including paintings, drawings, and sculptures.", "indoor": True }, { "name": "Bois de la Cambre", "url": "https://visit.brussels/en/place/Bois-de-la-Cambre", "description": "Take a walk in the beautiful park and enjoy the nature. You can also have a picnic or rent a paddleboat on the lake.", "indoor": False } ], "Sunday": [ { "name": "Visit Mini-Europe.", "url": "https://www.minieurope.com/en/", "description": "Explore Europe's most famous landmarks in miniature form. The park has over 350 models, including the Eiffel Tower, the Atomium, and the Colosseum.", "indoor": True }, { "name": "Explore the Atomium.", "url": "https://www.atomium.be/", "description": "Visit the iconic Atomium, a unique example of mid-century modern architecture. You'll get to see the permanent exhibition, as well as temporary exhibitions.", "indoor": True }, { "name": "Visit Parc de Bruxelles", "url": "https://visit.brussels/en/place/Parc-de-Bruxelles", "description": "Take a walk in the beautiful park, feed the ducks and have a picnic or walk around the Royal Palace of Brussels.", "indoor": False } ] }
+        st.write(llm_result_str)
         days_of_week = {'Monday': 1,
                         'Tuesday': 2, 
                         'Wednesday': 3, 
@@ -91,7 +122,8 @@ with st.form("my_form"):
                         'Sunday': 0}
 
         from location_finder import find_location_hours
-        for day, activities in llm_result.items():
+        activities_with_hours = {}
+        for day, activities in llm_result_dict.items():
             st.write(day)
             day_int=days_of_week[day]
             #st.write(activities)
@@ -100,6 +132,7 @@ with st.form("my_form"):
                 st.write(act['name'])
                 if hours:
                     for h in hours:
+                        #activities_with_hours[]
                         open = h['open']
                         if open['day'] == day_int:
                             if open['time'] == '0000':
