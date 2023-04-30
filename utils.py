@@ -5,7 +5,7 @@ from citipy import citipy
 from citipy.citipy import WORLD_CITIES_DICT
 
 def get_location(place_name: Optional[Text] = None) -> List[float]:
-    latlon_as_list = []
+    latlon_as_list = [40.7127281, -74.0060152]  # NYC
     loc = None
     if place_name:
         try:
@@ -17,14 +17,21 @@ def get_location(place_name: Optional[Text] = None) -> List[float]:
             latlon : Tuple = loc[1]
             latlon_as_list = [latlon[0], latlon[1]]
     else:
-        g = geocoder.ip('me')
-        latlon_as_list = g.latlng
+        try:
+            g = geocoder.ip('me')
+            latlon_as_list = g.latlng
+        except Exception:
+            pass
     return latlon_as_list
 
 def get_country_code(lat: float, lon: float) -> Optional[Text]:
-    geolocator = Nominatim(user_agent="my_app")
-    location = geolocator.reverse((lat, lon), exactly_one=True)
-    result = None
+    result = "us"
+    location = None
+    try:
+        geolocator = Nominatim(user_agent="my_app")
+        location = geolocator.reverse((lat, lon), exactly_one=True)
+    except Exception:
+        pass
     if location:
         try:
             return location.raw['address']['country_code']
