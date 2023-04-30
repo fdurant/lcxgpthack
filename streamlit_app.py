@@ -9,6 +9,10 @@ from langchain.utilities import GoogleSerperAPIWrapper
 from langchain.agents import initialize_agent, Tool
 from langchain.agents import AgentType
 
+import folium
+from streamlit_folium import st_folium, folium_static
+from utils import get_location, get_country_code, get_cities
+
 from time import strftime
 today_human = strftime("%a, %d %b %Y")
 
@@ -17,12 +21,22 @@ openai.api_key = OPENAI_API_KEY
 SERPER_API_KEY = st.secrets["SERPER_API_KEY"]
 os.environ['SERPAPI_API_KEY'] = SERPER_API_KEY
 
+my_country_latlon = get_location()
+my_country_lat = my_country_latlon[0]
+my_country_lon = my_country_latlon[1]
+m = folium.Map(location=my_country_latlon, width=750, height=500, zoom_start=3, control_scale=True)
+
+my_country_code = get_country_code(lat=my_country_lat, lon=my_country_lon)
+
+my_cities = get_cities(country_code=my_country_code)
+
 location = st.selectbox(
     label='What is your location?',
-    options=('Brussels, Belgium', 'Antwerp, Belgium', 'Ghent, Belgium', 'Liège, Belgium',
-     'Leuven, Belgium', 'Namur, Belgium', 'Kortrijk, Belgium', 'Oostende, Belgium'))
+    options=my_cities)
 
 st.write('You selected:', location)
+
+# st_data = st_folium(m, width=700)
 
 INITIAL_CHAT_MODEL = [
     SystemMessage(content="Act as a parent that is highly skilled in organising engaging past time activities for the family."),
