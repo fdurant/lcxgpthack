@@ -1,6 +1,6 @@
 import streamlit as st
-import os
 import openai
+import pycountry
 from langchain.llms import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
@@ -23,24 +23,29 @@ openai.api_key = OPENAI_API_KEY
 # os.environ['SERPAPI_API_KEY'] = SERPER_API_KEY
 GMAPS_API_KEY=st.secrets["GMAPS_API_KEY"]
 
-my_country_latlon = get_location()
-my_country_lat = my_country_latlon[0]
-my_country_lon = my_country_latlon[1]
-
 # m = folium.Map(location=my_country_latlon, width=750, height=500, zoom_start=3, control_scale=True)
-
-my_country_code = get_country_code(lat=my_country_lat, lon=my_country_lon)
-my_cities = get_cities(country_code=my_country_code)
 
 chat = ChatOpenAI(temperature=.9, openai_api_key=OPENAI_API_KEY)
 
 st.title("💡🎉 Weekend wonders")
 st.subheader('Find fun things to do with your family next weekend')
 
+st.header(":world_map: Country")
+
+all_countries = [c.name for c in pycountry.countries]
+my_country = st.selectbox(label="Which country?", options=all_countries)
+my_country_latlon = get_location(my_country)
+my_country_lat = my_country_latlon[0]
+my_country_lon = my_country_latlon[1]
+
 with st.form("my_form"):
 
-    st.header(":world_map: Location")
-    location = st.selectbox(label='Where do you want to go?', options=my_cities)
+    st.header(":world_map: City")
+
+    my_country_code = get_country_code(lat=my_country_lat, lon=my_country_lon)
+    my_cities = get_cities(country_code=my_country_code)
+
+    location = st.selectbox(label='Which city?', options=my_cities)
     
     # Profile
     st.header(":family: Who are you?")

@@ -1,12 +1,24 @@
-from typing import Optional, Text, List, Dict
+from typing import Optional, Text, List, Dict, Tuple
 import geocoder
 from geopy.geocoders import Nominatim
 from citipy import citipy
 from citipy.citipy import WORLD_CITIES_DICT
 
-def get_location() -> List[float]:
-    g = geocoder.ip('me')
-    return g.latlng
+def get_location(place_name: Optional[Text] = None) -> List[float]:
+    latlon_as_list = []
+    if place_name:
+        try:
+            geolocator = Nominatim(timeout=10, user_agent="Krukarius")
+            loc = geolocator.geocode(place_name)
+        except Exception:
+            pass
+        if loc:
+            latlon : Tuple = loc[1]
+            latlon_as_list = [latlon[0], latlon[1]]
+    else:
+        g = geocoder.ip('me')
+        latlon_as_list = g.latlng
+    return latlon_as_list
 
 def get_country_code(lat: float, lon: float) -> Optional[Text]:
     geolocator = Nominatim(user_agent="my_app")
