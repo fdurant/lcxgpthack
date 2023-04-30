@@ -17,12 +17,23 @@ openai.api_key = OPENAI_API_KEY
 SERPER_API_KEY = st.secrets["SERPER_API_KEY"]
 os.environ['SERPAPI_API_KEY'] = SERPER_API_KEY
 
+st.title("SliceOfAdventure") 
+
 location = st.selectbox(
     label='What is your location?',
-    options=('Brussels, Belgium', 'Antwerp, Belgium', 'Ghent, Belgium', 'Liège, Belgium',
+    options=('Select a city:','Brussels, Belgium', 'Antwerp, Belgium', 'Ghent, Belgium', 'Liège, Belgium',
      'Leuven, Belgium', 'Namur, Belgium', 'Kortrijk, Belgium', 'Oostende, Belgium'))
 
+if location == 'Select a city:':
+    st.stop()
+
 st.write('You selected:', location)
+
+def get_ai_message(chat_model, temperature=.7):
+    """returns a single ChatOpenAI message"""
+    chat = ChatOpenAI(temperature=temperature, openai_api_key=OPENAI_API_KEY)
+    ai_message = chat(chat_model)
+    return ai_message.content
 
 INITIAL_CHAT_MODEL = [
     SystemMessage(content="Act as a parent that is highly skilled in organising engaging past time activities for the family."),
@@ -44,11 +55,12 @@ INITIAL_CHAT_MODEL = [
     AIMessage(content=f"Great! I'll give you a list of suggestions for the next weekend, taking into account that today is {today_human}. Each suggestion is structured in Markdown. I'll give three suggestions per day"),
 ]
 
-chat = ChatOpenAI(temperature=.7, openai_api_key=OPENAI_API_KEY)
-ai_message = chat(INITIAL_CHAT_MODEL)
+with st.spinner('Generating a plan...'):
+    generated_plan = get_ai_message(INITIAL_CHAT_MODEL, temperature = .7)
 
-st.title("SliceOfAdventure")
-st.markdown(ai_message.content)
+st.markdown(generated_plan)
+
+st.button("Generate a different plan")
 
 prompt_agent = st.text_area(label="Fixed activity", value=f"Attend a kid friendly cultural event in {location}", label_visibility="hidden")
 
