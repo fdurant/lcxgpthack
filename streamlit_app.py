@@ -37,6 +37,8 @@ my_country_latlon = get_location()
 all_countries = [c.name for c in pycountry.countries]
 my_country = st.selectbox(label="Which country?", options=all_countries)
 
+st.write(f"Sure, {my_country}")
+
 with st.form("my_form"):
 
     my_country_latlon = get_location(my_country)
