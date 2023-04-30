@@ -72,9 +72,27 @@ with st.form("my_form"):
             HumanMessage(content="Your task is to help me plan a diverse calendar with activities for my family. Make sure to include all ranges of activies. For example, it can be everyday activities at home with the family, or also special activities or events in the neigborhood. Mix it up."),
             AIMessage(content="Tell me more about your family so I can provide suggestions tailored your needs and preferences."),
             HumanMessage(content=final_prompt),
-            AIMessage(content="Great! I'll give you a list of suggestions for the next weekend, taking into account that today is {today_human}. Each suggestion is structured in Markdown. I'll give three suggestions per day"),
+            AIMessage(content="I'll give three suggestions per day. I will structure everything in json. the json output will contain the days, as well as the events as per schema.org. I will add a flag to indicate if it is an indoor event."),
         ]
+        #ai_message = chat(INITIAL_CHAT_MODEL)
+        #llm_result = ai_message.content
+        #st.markdown(ai_message.content)
+
+        
+        llm_result = { "Saturday": [ { "name": "Visit the Royal Palace of Brussels.", "url": "https://www.monarchie.be/en/visit-palace-brussels", "description": "Take a guided tour of the palace and learn about its history and architecture. You'll get to see the Throne Room, the Mirror Room, and the Goya Room. ", "indoor": True }, { "name": "Visit the Musée Magritte Museum.", "url": "https://www.fine-arts-museum.be/en/museums/musee-magritte-museum", "description": "Explore the surreal art of René Magritte. The museum has an extensive collection of his works, including paintings, drawings, and sculptures.", "indoor": True }, { "name": "Bois de la Cambre", "url": "https://visit.brussels/en/place/Bois-de-la-Cambre", "description": "Take a walk in the beautiful park and enjoy the nature. You can also have a picnic or rent a paddleboat on the lake.", "indoor": False } ], "Sunday": [ { "name": "Visit Mini-Europe.", "url": "https://www.minieurope.com/en/", "description": "Explore Europe's most famous landmarks in miniature form. The park has over 350 models, including the Eiffel Tower, the Atomium, and the Colosseum.", "indoor": True }, { "name": "Explore the Atomium.", "url": "https://www.atomium.be/", "description": "Visit the iconic Atomium, a unique example of mid-century modern architecture. You'll get to see the permanent exhibition, as well as temporary exhibitions.", "indoor": True }, { "name": "Visit Parc de Bruxelles", "url": "https://visit.brussels/en/place/Parc-de-Bruxelles", "description": "Take a walk in the beautiful park, feed the ducks and have a picnic or walk around the Royal Palace of Brussels.", "indoor": False } ] }
+        
+        st.write(llm_result)
+        from location_finder import find_location_hours
+        for day, activities in llm_result.items():
+            st.write(day)
+            st.write(activities)
+            for act in activities:
+                hours = find_location_hours(act['name'])
+                if hours:
+                    st.write(act['name'])
+                    st.write(hours)
+                else:
+                    st.write("no hours")
 
 
-        ai_message = chat(INITIAL_CHAT_MODEL)
-        st.markdown(ai_message.content)
+        
