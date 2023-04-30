@@ -33,17 +33,25 @@ st.subheader('Find fun things to do with your family next weekend')
 st.header(":world_map: Country")
 
 my_country_latlon = get_location()
+print(f"1 my_country_latlon = {my_country_latlon}")
 
 all_countries = [c.name for c in pycountry.countries]
 my_country = st.selectbox(label="Which country?", options=all_countries)
 
-st.write(f"Sure, {my_country}")
-
 with st.form("my_form"):
 
+    print(f"2 my_country_latlon = {my_country_latlon}")
+
     my_country_latlon = get_location(my_country)
-    my_country_lat = my_country_latlon[0]
-    my_country_lon = my_country_latlon[1]
+
+    print(f"3 my_country_latlon = {my_country_latlon}")
+
+    try:
+        my_country_lat = my_country_latlon[0]
+        my_country_lon = my_country_latlon[1]
+    except Exception:
+        my_country_lat = 40.7127281
+        my_country_lon = -74.0060152
 
     st.header(":classical_building: City")
 
