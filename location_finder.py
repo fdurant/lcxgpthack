@@ -4,11 +4,11 @@ import urllib
 
 # Code auto generated from chat gpt
 
-def find_location_hours(text):
+def find_location_hours(text, api_key):
     # set up the API endpoint and parameters
     api_url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
     location = text  # replace with the location you want to look up
-    api_key = "AIzaSyC_1BBnpRXiR-Alk9_aXfLimwF5JDBpois"   # replace with your Google Places API key
+    api_key = api_key
     fields = "place_id"  # specify the fields you want to retrieve
 
     # construct the request URL

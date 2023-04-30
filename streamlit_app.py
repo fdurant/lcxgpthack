@@ -21,6 +21,7 @@ OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 openai.api_key = OPENAI_API_KEY
 # SERPER_API_KEY = st.secrets["SERPER_API_KEY"]
 # os.environ['SERPAPI_API_KEY'] = SERPER_API_KEY
+GMAPS_API_KEY=st.secrets["GMAPS_API_KEY"]
 
 my_country_latlon = get_location()
 my_country_lat = my_country_latlon[0]
@@ -168,7 +169,7 @@ with st.form("my_form"):
                 st.header(day)
                 day_int=days_of_week[day]
                 for act in activities:
-                    hours = find_location_hours(act['place_name'])
+                    hours = find_location_hours(act['place_name'], GMAPS_API_KEY)
                     if hours:
                         for h in hours:
                             activities_with_hours[act['place_name']] = act['place_name']
@@ -185,6 +186,3 @@ with st.form("my_form"):
                         st.markdown("* " + act['description'].replace(act['place_name'],activities_with_hours[act['place_name']]))
                     else:
                         st.markdown("* " + act['description'])
-
-
-
