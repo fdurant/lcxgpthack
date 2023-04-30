@@ -7,3 +7,4 @@ geocoder==1.38.1
 geopy==2.3.0
 citipy==0.0.6
 pycountry==22.3.5
+pyowm==3.3.0

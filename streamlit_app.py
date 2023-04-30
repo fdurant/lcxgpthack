@@ -1,13 +1,10 @@
 import streamlit as st
-import os
 import openai
-from langchain.llms import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 
-from langchain.utilities import GoogleSerperAPIWrapper
-from langchain.agents import initialize_agent, Tool
-from langchain.agents import AgentType
+from langchain.utilities import OpenWeatherMapAPIWrapper
+from langchain.agents import initialize_agent
 
 import folium
 from streamlit_folium import st_folium, folium_static
@@ -21,6 +18,7 @@ OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 openai.api_key = OPENAI_API_KEY
 # SERPER_API_KEY = st.secrets["SERPER_API_KEY"]
 # os.environ['SERPAPI_API_KEY'] = SERPER_API_KEY
+OPENWEATHERMAP_API_KEY = st.secrets["OPENWEATHERMAP_API_KEY"]
 
 my_country_latlon = get_location()
 my_country_lat = my_country_latlon[0]
@@ -31,6 +29,8 @@ my_country_lon = my_country_latlon[1]
 my_country_code = get_country_code(lat=my_country_lat, lon=my_country_lon)
 my_cities = get_cities(country_code=my_country_code)
 
+weather = OpenWeatherMapAPIWrapper()
+
 chat = ChatOpenAI(temperature=.9, openai_api_key=OPENAI_API_KEY)
 
 st.title("🍕🎉 Slice Of Adventure")
@@ -40,8 +40,6 @@ with st.form("my_form"):
 
     location = st.selectbox(label='Where do you want to go?', options=my_cities)
     
-    st.write('You selected:', location)
-
     st.text('First, tell us a bit about your family')
     
     st.header("Family composition")
@@ -95,6 +93,9 @@ with st.form("my_form"):
 
     if submitted:
 
+        # Retrieve
+        weather_forecast = weather.run(f"{location},{my_country_code.upper()}")
+        print(weather_forecast)
         family_location = f"{location}, {my_country_code.upper()}"
 
         profile_template = """
@@ -107,16 +108,19 @@ with st.form("my_form"):
 
         Please suggest activities that we can do next weekend.
 
+        {weather_forecast}
+
         Start your response with a concise summary of our interests to show that you tailored your results.
         """
         prompt = PromptTemplate(
             template = profile_template,
-            input_variables = ["family_location", "family_composition", "family_selected_interests"],
+            input_variables = ["family_location", "family_composition", "family_selected_interests", "weather_forecast"],
         )
 
-        final_prompt = prompt.format(family_location=family_location, family_composition=family_composition, family_selected_interests=family_selected_interests)
+        final_prompt = prompt.format(family_location=family_location, family_composition=family_composition, family_selected_interests=family_selected_interests, weather_forecast=weather_forecast)
 
         print (f"Final prompt: {final_prompt}")
+        st.write(final_prompt)
 
 # st_data = st_folium(m, width=700)
 
