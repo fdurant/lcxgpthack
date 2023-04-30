@@ -4,6 +4,15 @@ import openai
 from langchain.llms import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
+
+from langchain.utilities import GoogleSerperAPIWrapper
+from langchain.agents import initialize_agent, Tool
+from langchain.agents import AgentType
+
+import folium
+from streamlit_folium import st_folium, folium_static
+from utils import get_location, get_country_code, get_cities
+
 from langchain.prompts import PromptTemplate
 from time import strftime
 today_human = strftime("%a, %d %b %Y")
@@ -13,20 +22,26 @@ openai.api_key = OPENAI_API_KEY
 SERPER_API_KEY = st.secrets["SERPER_API_KEY"]
 os.environ['SERPAPI_API_KEY'] = SERPER_API_KEY
 
-location = st.selectbox(
-    label='What is your location?',
-    options=('Brussels, Belgium', 'Antwerp, Belgium', 'Ghent, Belgium', 'Liège, Belgium',
-     'Leuven, Belgium', 'Namur, Belgium', 'Kortrijk, Belgium', 'Oostende, Belgium'))
+my_country_latlon = get_location()
+my_country_lat = my_country_latlon[0]
+my_country_lon = my_country_latlon[1]
 
-st.write('You selected:', location)
+# m = folium.Map(location=my_country_latlon, width=750, height=500, zoom_start=3, control_scale=True)
+
+my_country_code = get_country_code(lat=my_country_lat, lon=my_country_lon)
+my_cities = get_cities(country_code=my_country_code)
 
 chat = ChatOpenAI(temperature=.9, openai_api_key=OPENAI_API_KEY)
 
 st.title("🍕🎉 Slice Of Adventure")
 st.text('Get inspired for fun things to do with your family')
 
-
 with st.form("my_form"):
+
+    location = st.selectbox(label='Where do you want to go?', options=my_cities)
+    
+    st.write('You selected:', location)
+
     st.text('First, tell us a bit about your family')
     
     family_composition = st.text_area('How many family members are there, and what are their ages?', 
@@ -41,7 +56,7 @@ with st.form("my_form"):
     submitted = st.form_submit_button("Submit")
     if submitted:
 
-        family_location = "Brussels, Belgium (postal code 1000)"
+        family_location = f"{location}, {my_country_code.upper()}"
 
         # family_composition = "We are three people. I\'m a man of 41, my wife is 36. We have a daughter of 2,5 years old."
         # family_interests = "We like music, playing, walking around, nature, playgrounds, eating out, inviting friends for dinner. Some culture too. We don't have specific hobbies."
@@ -66,6 +81,8 @@ with st.form("my_form"):
         final_prompt = prompt.format(family_location=family_location, family_composition=family_composition, family_interests=family_interests, family_activity_focus=family_activity_focus)
 
         print (f"Final prompt: {final_prompt}")
+
+# st_data = st_folium(m, width=700)
 
         INITIAL_CHAT_MODEL = [
             SystemMessage(content="Act as a parent that is highly skilled in organising engaging past time activities for the family. You excell at finding and suggesting a wide range of family activities. You're great at finding both special activities to go do with the family but also in finding fun and creative ways to turn a munday day in the house into a fun experience."),
