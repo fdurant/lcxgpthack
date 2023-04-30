@@ -81,16 +81,32 @@ with st.form("my_form"):
         
         llm_result = { "Saturday": [ { "name": "Visit the Royal Palace of Brussels.", "url": "https://www.monarchie.be/en/visit-palace-brussels", "description": "Take a guided tour of the palace and learn about its history and architecture. You'll get to see the Throne Room, the Mirror Room, and the Goya Room. ", "indoor": True }, { "name": "Visit the Musée Magritte Museum.", "url": "https://www.fine-arts-museum.be/en/museums/musee-magritte-museum", "description": "Explore the surreal art of René Magritte. The museum has an extensive collection of his works, including paintings, drawings, and sculptures.", "indoor": True }, { "name": "Bois de la Cambre", "url": "https://visit.brussels/en/place/Bois-de-la-Cambre", "description": "Take a walk in the beautiful park and enjoy the nature. You can also have a picnic or rent a paddleboat on the lake.", "indoor": False } ], "Sunday": [ { "name": "Visit Mini-Europe.", "url": "https://www.minieurope.com/en/", "description": "Explore Europe's most famous landmarks in miniature form. The park has over 350 models, including the Eiffel Tower, the Atomium, and the Colosseum.", "indoor": True }, { "name": "Explore the Atomium.", "url": "https://www.atomium.be/", "description": "Visit the iconic Atomium, a unique example of mid-century modern architecture. You'll get to see the permanent exhibition, as well as temporary exhibitions.", "indoor": True }, { "name": "Visit Parc de Bruxelles", "url": "https://visit.brussels/en/place/Parc-de-Bruxelles", "description": "Take a walk in the beautiful park, feed the ducks and have a picnic or walk around the Royal Palace of Brussels.", "indoor": False } ] }
         
-        st.write(llm_result)
+        #st.write(llm_result)
+        days_of_week = {'Monday': 1,
+                        'Tuesday': 2, 
+                        'Wednesday': 3, 
+                        'Thursday': 4,
+                        'Friday': 5,
+                        'Saturday': 6,
+                        'Sunday': 0}
+
         from location_finder import find_location_hours
         for day, activities in llm_result.items():
             st.write(day)
-            st.write(activities)
+            day_int=days_of_week[day]
+            #st.write(activities)
             for act in activities:
                 hours = find_location_hours(act['name'])
+                st.write(act['name'])
                 if hours:
-                    st.write(act['name'])
-                    st.write(hours)
+                    for h in hours:
+                        open = h['open']
+                        if open['day'] == day_int:
+                            st.write("Open time: %s" % open['time'])
+                        if 'close' in h:
+                            close = h['close']
+                            if close['day'] == day_int:
+                                st.write("Open time: %s" % close['time'])
                 else:
                     st.write("no hours")
 

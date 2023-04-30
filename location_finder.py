@@ -38,7 +38,7 @@ def find_location_hours(text):
         if response.status_code == 200:
             # parse the response JSON data
             response_data = response.json()
-            print(response_data)
+            #print(response_data)
             if response_data['result'] != {}:
                 # extract the opening hours data
                 opening_hours = response_data["result"]["opening_hours"]
