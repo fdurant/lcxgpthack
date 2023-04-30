@@ -57,6 +57,7 @@ with st.form("my_form"):
         We prefer these types of activities: {family_activity_focus} 
 
         Please suggest activities that we can do next weekend.
+        I'll return a json with 3 suggestion per day.
         """
         prompt = PromptTemplate(
             template = profile_template,
@@ -85,29 +86,47 @@ with st.form("my_form"):
 
         # Define your desired data structure.
         class Activity(BaseModel):
-            day: str = Field(description="day of the week")
+            #day: str = Field(description="day of the week")
             text: str = Field(description="description of the activity")
-            location_name: str = Field(description="named entity of the location")
+            #location_name: str = Field(description="named entity of the location")
             
         # Set up a parser + inject instructions into the prompt template.
         parser = PydanticOutputParser(pydantic_object=Activity)
-        prompt = PromptTemplate(
-            template=INITIAL_CHAT_MODEL + "\n{format_instructions}",
-            partial_variables={"format_instructions": parser.get_format_instructions()}
+
+        from langchain.chains import LLMChain, TransformChain
+        from langchain.chains import SequentialChain, SimpleSequentialChain
+
+        llm = OpenAI(temperature=.9, openai_api_key=OPENAI_API_KEY)
+        llm_chain = LLMChain(
+            prompt=prompt,
+            llm=llm,
+            output_key="json_string",
         )
 
-        # And a query intented to prompt a language model to populate the data structure.
-        joke_query = "Tell me a joke."
-        _input = prompt.format_prompt()
+        def parse_output(inputs: dict) -> dict:
+            text = inputs["json_string"]
+            return {"result": parser.parse(text)}
 
+        transform_chain = TransformChain(
+            input_variables=["json_string"],
+            output_variables=["result"],
+            transform=parse_output
+        )
 
-        ai_message = chat(_input.to_string())
-        parsed = parser.parse(ai_message)
-        print(type(parsed))
-        print(parsed)
-        st.write(parsed)
-        
-        llm_result_str = ai_message.content
+        chain = SequentialChain(
+            input_variables=["family_location", "family_composition", "family_interests", "family_activity_focus"],
+            output_variables=["result"],
+            chains=[llm_chain, transform_chain],
+        )
+
+        #chain = SimpleSequentialChain(chains=[llm_chain, transform_chain], verbose=True)
+
+        a = chain.run(prompt=prompt,family_location=family_location, family_composition=family_composition, family_interests=family_interests, family_activity_focus=family_activity_focus)
+        print(a)
+        print(type(a))
+        st.write(a)
+        st.title("Suggestions for next weekend")
+
 
 
         
