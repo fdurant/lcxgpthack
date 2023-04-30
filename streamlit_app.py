@@ -102,7 +102,10 @@ with st.form("my_form"):
                     for h in hours:
                         open = h['open']
                         if open['day'] == day_int:
-                            st.write("Open time: %s" % open['time'])
+                            if open['time'] == '0000':
+                                st.write("Open time: Always")
+                            else:
+                                st.write("Open time: %s" % open['time'])
                         if 'close' in h:
                             close = h['close']
                             if close['day'] == day_int:
