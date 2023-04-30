@@ -94,7 +94,7 @@ with st.form("my_form"):
         family_openness = "I'm also open to new things. Suggest a balanced mix of activities based on the things I love, and also mix in a few other types of activities"
     
     if family_openness == "Go bonkers!" :
-        family_openness = "Get creative with your answers. Suggest different wildly types of acitivities and you can go over the top with the ideas. The activities can be elaborate and out of the ordinary."
+        family_openness = "Get creative with your answers. Suggest wildly different types of acitivities and you can go over the top with the ideas. The activities can be elaborate and out of the ordinary."
 
     st.divider()
 
