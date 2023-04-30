@@ -6,6 +6,7 @@ from citipy.citipy import WORLD_CITIES_DICT
 
 def get_location(place_name: Optional[Text] = None) -> List[float]:
     latlon_as_list = []
+    loc = None
     if place_name:
         try:
             geolocator = Nominatim(timeout=10, user_agent="Krukarius")
