@@ -1,5 +1,7 @@
 import streamlit as st
+import os
 import openai
+from langchain.llms import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 from langchain.prompts import (
@@ -14,6 +16,15 @@ today_human = strftime("%a, %d %b %Y")
 
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 openai.api_key = OPENAI_API_KEY
+SERPER_API_KEY = st.secrets["SERPER_API_KEY"]
+os.environ['SERPAPI_API_KEY'] = SERPER_API_KEY
+
+location = st.selectbox(
+    label='What is your location?',
+    options=('Brussels, Belgium', 'Antwerp, Belgium', 'Ghent, Belgium', 'Liège, Belgium',
+     'Leuven, Belgium', 'Namur, Belgium', 'Kortrijk, Belgium', 'Oostende, Belgium'))
+
+st.write('You selected:', location)
 
 chat = ChatOpenAI(temperature=.9, openai_api_key=OPENAI_API_KEY)
 
