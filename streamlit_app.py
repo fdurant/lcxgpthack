@@ -1,5 +1,7 @@
 import streamlit as st
+import requests
 import openai
+from datetime import datetime
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 
@@ -8,10 +10,15 @@ from langchain.agents import initialize_agent
 
 import folium
 from streamlit_folium import st_folium, folium_static
-from utils import get_location, get_country_code, get_cities
+from utils import get_location, get_country_code, get_cities, get_next_weekday, SATURDAY_DOW, SUNDAY_DOW
 
 from langchain.prompts import PromptTemplate
 from time import strftime
+today_dt: datetime = datetime.today()
+today_dt_str = today_dt.isoformat().split("T")[0]
+next_sat_dt :str = get_next_weekday(startdate=today_dt_str, weekday=SATURDAY_DOW)
+next_sun_dt :str = get_next_weekday(startdate=today_dt_str, weekday=SUNDAY_DOW)
+
 today_human = strftime("%a, %d %b %Y")
 
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
@@ -33,21 +40,22 @@ weather = OpenWeatherMapAPIWrapper()
 
 chat = ChatOpenAI(temperature=.9, openai_api_key=OPENAI_API_KEY)
 
-st.title("🍕🎉 Slice Of Adventure")
-st.text('Get inspired for fun things to do with your family')
+st.title("💡🎉 Weekend wonders")
+st.subheader('Find fun things to do with your family next weekend')
 
 with st.form("my_form"):
 
+    st.header(":world_map: Location")
     location = st.selectbox(label='Where do you want to go?', options=my_cities)
     
-    st.text('First, tell us a bit about your family')
-    
-    st.header("Family composition")
+    # Profile
+    st.header(":family: Who are you?")
 
     family_composition = st.text_area('How many family members are there, and what are their ages?', 
-    ''' We are three people. I\'m a man of 41, my wife is 36. We have a daughter of 2,5 years old. ''')
+    ''' We are three people. I\'m a man of 41, my wife is 36. We have a daughter of 2,5 years old. ''', 50)
 
-    st.header("Interests and passions")
+    # Interests
+    st.header(":thinking_face: What do you feel like doing?")
     col1, col2, col3 = st.columns(3)
     with col1:
         family_interests_art =  st.checkbox(":art: Art & Culture")
@@ -62,10 +70,8 @@ with st.form("my_form"):
         family_interests_fooddrink = st.checkbox(":ramen: Food & Drink")
         family_interests_hiddenplaces = st.checkbox(":triangular_flag_on_post: Hidden places")
     
-    # Define a list of the selected checkbox labels
     selected_interests = []
 
-    # Check each checkbox variable and add the label to the list if it's selected
     if family_interests_art:
         selected_interests.append("Art & Culture")
     if family_interests_home:
@@ -87,50 +93,76 @@ with st.form("my_form"):
 
     family_selected_interests = ", ".join(selected_interests)
 
+    # Originality
+    st.header(":gift: Can we surprise you?")
+    family_openness = st.select_slider("How original can the suggestions be?", options=("Stick strictly to my selections", "I'm also open to new things.", "Go bonkers!"))
+
+    if family_openness == "I'm also open to new things." :
+        family_openness = "I'm also open to new things. Suggest a balanced mix of activities based on the things I love, and also mix in a few other types of activities"
+    
+    if family_openness == "Go bonkers!" :
+        family_openness = "Get creative with your answers. Suggest wildly different types of acitivities and you can go over the top with the ideas. The activities can be elaborate and out of the ordinary."
+
     st.divider()
 
     submitted = st.form_submit_button("Get suggestions")
 
     if submitted:
 
-        # Retrieve
-        weather_forecast = weather.run(f"{location},{my_country_code.upper()}")
-        print(weather_forecast)
-        family_location = f"{location}, {my_country_code.upper()}"
+        with st.spinner('Looking for good times...'):
 
-        profile_template = """
-        We live in: {family_location}
+            my_city_latlon = get_location(f"{location},{my_country_code}")
+            my_city_lat = my_city_latlon[0]
+            my_city_lon = my_city_latlon[1]
 
-        This is how many family members there are, and their ages: {family_composition} 
+            # Retrieve
+            weather_forecast = weather.run(f"{location},{my_country_code.upper()}")
+            print(weather_forecast)
 
-        Our family loves the following types of activies: {family_selected_interests}
-        Make sure to focus on these types with your suggestions.
+            weather_url = f"http://api.openweathermap.org/data/2.5/forecast?lat={my_city_lat}&lon={my_city_lon}&appid={OPENWEATHERMAP_API_KEY}&units=metric&cnt=3"
+            weather_data = requests.get(weather_url).json()
+            st.write(weather_data)
 
-        Please suggest activities that we can do next weekend.
+            family_location = f"{location}, {my_country_code.upper()}"
 
-        {weather_forecast}
+            profile_template = """
+            We live in: {family_location}
 
-        Start your response with a concise summary of our interests to show that you tailored your results.
-        """
-        prompt = PromptTemplate(
-            template = profile_template,
-            input_variables = ["family_location", "family_composition", "family_selected_interests", "weather_forecast"],
-        )
+            This is how many family members there are, and their ages: {family_composition} 
 
-        final_prompt = prompt.format(family_location=family_location, family_composition=family_composition, family_selected_interests=family_selected_interests, weather_forecast=weather_forecast)
+            Our family loves the following types of activies: {family_selected_interests}
+            
+            I shared this overview of the types of activities that we love. And would like you to treat this suggestions in this way: {family_openness}.
 
-        print (f"Final prompt: {final_prompt}")
-        st.write(final_prompt)
+            Now please suggest activities that we can do next weekend.
 
-# st_data = st_folium(m, width=700)
+            {weather_forecast}
 
-        INITIAL_CHAT_MODEL = [
-            SystemMessage(content="Act as a parent that is highly skilled in organising engaging past time activities for the family. You excell at finding and suggesting a wide range of family activities. You're great at finding both special activities to go do with the family but also in finding fun and creative ways to turn a mundane day in the house into a fun experience. "),
-            HumanMessage(content="Your task is to help me plan a diverse calendar with activities for my family. Make sure to include all ranges of activies. For example, it can be everyday activities at home with the family, or also special activities or events in the neigborhood. You could also include parents-only night out (with babysit?). Mix it up."),
-            AIMessage(content="Tell me more about your family so I can provide suggestions tailored your needs and preferences."),
-            HumanMessage(content=final_prompt),
-            AIMessage(content="Great! I'll give you a list of suggestions for the next weekend, taking into account that today is {today_human}. Each suggestion is structured in Markdown. I'll give four suggestions per day."),
-        ]
+            Please take this weather forecast into account when making your suggestions.
 
-        ai_message = chat(INITIAL_CHAT_MODEL)
-        st.markdown(ai_message.content)
+            Start your response with a concise summary of our interests to show that you tailored your results.
+            Also add one weather emoji per day, the temperature and how to dress accordingly.
+            """
+            prompt = PromptTemplate(
+                template = profile_template,
+                input_variables = ["family_location", "family_composition", "family_selected_interests", "family_openness", "weather_forecast"],
+            )
+
+            final_prompt = prompt.format(family_location=family_location, family_composition=family_composition, family_selected_interests=family_selected_interests, family_openness=family_openness, weather_forecast=weather_forecast)
+
+            print (f"Final prompt: {final_prompt}")
+            print (f"family_openness: {family_openness}")
+
+    # st_data = st_folium(m, width=700)
+
+            INITIAL_CHAT_MODEL = [
+                SystemMessage(content="Act as a parent that is highly skilled in organising engaging past time activities for the family. You excell at finding and suggesting a wide range of family activities. You're great at finding both special activities to go do with the family but also in finding fun and creative ways to turn a mundane day in the house into a fun experience. "),
+                HumanMessage(content="Your task is to help me plan a diverse calendar with activities for my family. Make sure to include all ranges of activies. For example, it can be everyday activities at home with the family, or also special activities or events in the neigborhood. You could also include parents-only night out (with babysit?). Mix it up. Know that we are locals, so please do not suggest typical touristic destinations."),
+                AIMessage(content="Tell me more about your family so I can provide suggestions tailored your needs and preferences."),
+                HumanMessage(content=final_prompt),
+                AIMessage(content=f"Great! I'll give you a list of suggestions for the next weekend Saturday {next_sat_dt} and Sunday {next_sun_dt}, taking into account that today is {today_human}. Each suggestion is structured in Markdown. I'll give four suggestions per day."),
+            ]
+
+            ai_message = chat(INITIAL_CHAT_MODEL)
+            st.title("Suggestions for next weekend")
+            st.markdown(ai_message.content)
