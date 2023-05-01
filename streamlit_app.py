@@ -42,7 +42,7 @@ st.subheader('Find fun things to do with your family next weekend')
 
 st.header(":world_map: Country")
 
-all_countries = [c.name for c in pycountry.countries]
+all_countries = [c.name.capitalize() for c in pycountry.countries]
 my_country = st.selectbox(label="Which country?", options=all_countries)
 
 with st.form("my_form"):
@@ -60,8 +60,9 @@ with st.form("my_form"):
 
     my_country_code = get_country_code(lat=my_country_lat, lon=my_country_lon)
     my_cities = get_cities(country_code=my_country_code)
+    my_cities_capitalized = [city.capitalize() for city in my_cities]
 
-    location = st.selectbox(label='Which city?', options=my_cities)
+    location = st.selectbox(label='Which city?', options=my_cities_capitalized)
     
     # Profile
     st.header(":family: Who are you?")
@@ -124,15 +125,11 @@ with st.form("my_form"):
 
     if submitted:
 
-        with st.spinner(f'Looking for good times on {next_sat_human} and {next_sun_human} ...'):
+        with st.spinner(f'Looking for good times in {location}, {my_country_code.upper()} on {next_sat_human} and {next_sun_human} ...'):
 
             my_city_latlon = get_location(f"{location},{my_country_code}")
             my_city_lat = my_city_latlon[0]
             my_city_lon = my_city_latlon[1]
-
-            # Retrieve
-            weather_forecast = weather.run(f"{location},{my_country_code.upper()}")
-            print(weather_forecast)
 
             exclude_parts = "minutely,hourly,alerts"
             weather_url = f"https://api.openweathermap.org/data/3.0/onecall?lat={my_city_lat}&lon={my_city_lon}&appid={OPENWEATHERMAP_API_KEY}&exclude={exclude_parts}&units=metric"
@@ -147,6 +144,11 @@ with st.form("my_form"):
 
             weather_forecast_sat = get_forecast(weather_data_sat)
             weather_forecast_sun = get_forecast(weather_data_sun)
+
+            weather_icon_sat = dictor(weather_data_sat, "weather.0.icon")
+            weather_icon_url_sat = f"http://openweathermap.org/img/w/{weather_icon_sat}.png"
+            weather_icon_sun = dictor(weather_data_sun, "weather.0.icon")
+            weather_icon_url_sun = f"http://openweathermap.org/img/w/{weather_icon_sun}.png"
 
             family_location = f"{location}, {my_country_code.upper()}"
 
@@ -201,7 +203,7 @@ with st.form("my_form"):
                 HumanMessage(content="Your task is to help me plan a diverse calendar with activities for my family. Make sure to include all ranges of activies. For example, it can be everyday activities at home with the family, or also special activities or events in the neigborhood. You could also include parents-only night out (with babysit?). Mix it up. Know that we are locals, so please do not suggest typical touristic destinations."),
                 AIMessage(content="Tell me more about your family so I can provide suggestions tailored your needs and preferences."),
                 HumanMessage(content=final_prompt),
-                AIMessage(content="Great! I'll give you a list of suggestions formatted in json for the next weekend {next_sat_human} and {next_sun_human}. I'll return four suggestions per day (day of the week in words only). Every suggestion should contain the descriptions of the activities (description), the names of the places (place_name), the url associated with those places.")
+                AIMessage(content=f"Great! I'll give you a list of suggestions formatted in json for the next weekend {next_sat_human} and {next_sun_human}. I'll also return four suggestions per day (day of the week in words only). Every suggestion should contain the descriptions of the activities (description), the names of the places (place_name), the url associated with those places.")
             ]
 
             ai_message = chat(INITIAL_CHAT_MODEL)
@@ -231,6 +233,20 @@ with st.form("my_form"):
             activities_with_hours = {}
             for day, activities in llm_result_dict.items():
                 st.header(day)
+
+                if day == 'Saturday' and weather_icon_url_sat:
+                    col1, col2 = st.columns([1,10])
+                    with col1:
+                        st.image(weather_icon_url_sat)
+                    with col2:
+                        st.markdown(f"#### {weather_forecast_sat}")
+                elif day == 'Sunday' and weather_icon_url_sun:
+                    col1, col2 = st.columns([1,10])
+                    with col1:
+                        st.image(weather_icon_url_sun)
+                    with col2:
+                        st.markdown(f"#### {weather_forecast_sun}")
+
                 day_int = 0
                 try:
                     day_int=days_of_week[day]

@@ -129,8 +129,9 @@ def get_forecast(prediction: Dict[Text, Any]) -> Text:
     #    ]
     #}
     # Returns a written forecast
-    weather_forecast = dictor(prediction, "weather.0.description")
-    temp_outlook = "temperature up to " + str(int(dictor(prediction, "temp.max"))) + " °C"
+    weather_forecast = dictor(prediction, "weather.0.description").capitalize()
+    temp_outlook = "temperature up to ".capitalize()
+    temp_outlook += str(int(dictor(prediction, "temp.max"))) + " °C"
     forecast = ""
     if weather_forecast:
         forecast += f"{weather_forecast}. "

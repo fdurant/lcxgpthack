@@ -17,7 +17,7 @@ DUMMY_PRED_1 = {
     ]
 }
 
-EXPECTED_FORECAST_1 = "scattered clouds. temperature up to 16 °C."
+EXPECTED_FORECAST_1 = "Scattered clouds. Temperature up to 16 °C."
 
 DUMMY_PRED_2 = {
     "dt":1683025200,
