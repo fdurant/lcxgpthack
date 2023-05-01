@@ -1,29 +1,39 @@
 import streamlit as st
+import requests
 import openai
 import pycountry
-from langchain.llms import OpenAI
+from datetime import datetime
+from dictor import dictor
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 
-from langchain.utilities import GoogleSerperAPIWrapper
-from langchain.agents import initialize_agent, Tool
-from langchain.agents import AgentType
+from langchain.utilities import OpenWeatherMapAPIWrapper
+from langchain.agents import initialize_agent
 
 import folium
 from streamlit_folium import st_folium, folium_static
-from utils import get_location, get_country_code, get_cities
+from utils import get_location, get_country_code, get_cities, get_next_weekday, SATURDAY_DOW, SUNDAY_DOW, select_weather_prediction_by_date, get_forecast
 
 from langchain.prompts import PromptTemplate
 from time import strftime
+today_dt: datetime = datetime.today()
 today_human = strftime("%a, %d %b %Y")
+
+next_sat :datetime = get_next_weekday(startdate=today_dt, weekday=SATURDAY_DOW)
+next_sat_human :str = next_sat.strftime('%A %d %b %Y')
+next_sun :datetime = get_next_weekday(startdate=today_dt, weekday=SUNDAY_DOW)
+next_sun_human : str = next_sun.strftime('%A %d %b %Y')
 
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 openai.api_key = OPENAI_API_KEY
 # SERPER_API_KEY = st.secrets["SERPER_API_KEY"]
 # os.environ['SERPAPI_API_KEY'] = SERPER_API_KEY
+OPENWEATHERMAP_API_KEY = st.secrets["OPENWEATHERMAP_API_KEY"]
 GMAPS_API_KEY=st.secrets["GMAPS_API_KEY"]
 
 # m = folium.Map(location=my_country_latlon, width=750, height=500, zoom_start=3, control_scale=True)
+
+weather = OpenWeatherMapAPIWrapper()
 
 chat = ChatOpenAI(temperature=.9, openai_api_key=OPENAI_API_KEY)
 
@@ -114,7 +124,29 @@ with st.form("my_form"):
 
     if submitted:
 
-        with st.spinner('Looking for good times...'):
+        with st.spinner(f'Looking for good times on {next_sat_human} and {next_sun_human} ...'):
+
+            my_city_latlon = get_location(f"{location},{my_country_code}")
+            my_city_lat = my_city_latlon[0]
+            my_city_lon = my_city_latlon[1]
+
+            # Retrieve
+            weather_forecast = weather.run(f"{location},{my_country_code.upper()}")
+            print(weather_forecast)
+
+            exclude_parts = "minutely,hourly,alerts"
+            weather_url = f"https://api.openweathermap.org/data/3.0/onecall?lat={my_city_lat}&lon={my_city_lon}&appid={OPENWEATHERMAP_API_KEY}&exclude={exclude_parts}&units=metric"
+            weather_data = requests.get(weather_url).json()
+            # st.write(weather_data)
+
+            weather_data_sat = select_weather_prediction_by_date(weather_data.get("daily"), next_sat)
+            weather_data_sun = select_weather_prediction_by_date(weather_data.get("daily"), next_sun)
+
+            # st.write(weather_data_sat)
+            # st.write(weather_data_sun)
+
+            weather_forecast_sat = get_forecast(weather_data_sat)
+            weather_forecast_sun = get_forecast(weather_data_sun)
 
             family_location = f"{location}, {my_country_code.upper()}"
 
@@ -129,26 +161,47 @@ with st.form("my_form"):
 
             Now please suggest activities that we can do next weekend.
 
+            The weather forecast for {next_sat_human}: {weather_forecast_sat}
+            The weather forecast for {next_sun_human}: {weather_forecast_sun}
+
+            Please take this weather forecast into account when making your suggestions.
+
             Start your response with a concise summary of our interests to show that you tailored your results.
+            Also add one weather emoji per day, the temperature and how to dress accordingly.
             """
             prompt = PromptTemplate(
                 template = profile_template,
-                input_variables = ["family_location", "family_composition", "family_selected_interests", "family_openness"],
+                input_variables = ["family_location",
+                                   "family_composition",
+                                   "family_selected_interests",
+                                   "family_openness",
+                                   "weather_forecast_sat",
+                                   "weather_forecast_sun",
+                                   "next_sat_human",
+                                   "next_sun_human"],
             )
 
-            final_prompt = prompt.format(family_location=family_location, family_composition=family_composition, family_selected_interests=family_selected_interests, family_openness=family_openness)
+            final_prompt = prompt.format(
+                family_location=family_location,
+                family_composition=family_composition,
+                family_selected_interests=family_selected_interests,
+                family_openness=family_openness,
+                weather_forecast_sat=weather_forecast_sat,
+                weather_forecast_sun=weather_forecast_sun,
+                next_sat_human=next_sat_human,
+                next_sun_human=next_sun_human)
 
             print (f"Final prompt: {final_prompt}")
             print (f"family_openness: {family_openness}")
 
-    # st_data = st_folium(m, width=700)
+            # st_data = st_folium(m, width=700)
 
             INITIAL_CHAT_MODEL = [
                 SystemMessage(content="Act as a parent that is highly skilled in organising engaging past time activities for the family. You excell at finding and suggesting a wide range of family activities. You're great at finding both special activities to go do with the family but also in finding fun and creative ways to turn a mundane day in the house into a fun experience. "),
                 HumanMessage(content="Your task is to help me plan a diverse calendar with activities for my family. Make sure to include all ranges of activies. For example, it can be everyday activities at home with the family, or also special activities or events in the neigborhood. You could also include parents-only night out (with babysit?). Mix it up. Know that we are locals, so please do not suggest typical touristic destinations."),
                 AIMessage(content="Tell me more about your family so I can provide suggestions tailored your needs and preferences."),
                 HumanMessage(content=final_prompt),
-                AIMessage(content="Great! I'll give you a list of suggestions formatted in json for the next weekend. I'll return four suggestion per day (day of the week in words). Every suggestion should contain the descriptions of the activities (description), the names of the places (place_name), the url associated with those places.")
+                AIMessage(content="Great! I'll give you a list of suggestions formatted in json for the next weekend {next_sat_human} and {next_sun_human}. I'll return four suggestions per day (day of the week in words only). Every suggestion should contain the descriptions of the activities (description), the names of the places (place_name), the url associated with those places.")
             ]
 
             ai_message = chat(INITIAL_CHAT_MODEL)
@@ -178,7 +231,11 @@ with st.form("my_form"):
             activities_with_hours = {}
             for day, activities in llm_result_dict.items():
                 st.header(day)
-                day_int=days_of_week[day]
+                day_int = 0
+                try:
+                    day_int=days_of_week[day]
+                except KeyError:
+                    pass
                 for act in activities:
                     hours = find_location_hours(act['place_name'], GMAPS_API_KEY)
                     if hours:
