@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import openai
 from datetime import datetime
+from dictor import dictor
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 
@@ -10,16 +11,17 @@ from langchain.agents import initialize_agent
 
 import folium
 from streamlit_folium import st_folium, folium_static
-from utils import get_location, get_country_code, get_cities, get_next_weekday, SATURDAY_DOW, SUNDAY_DOW
+from utils import get_location, get_country_code, get_cities, get_next_weekday, SATURDAY_DOW, SUNDAY_DOW, select_weather_prediction_by_date, get_forecast
 
 from langchain.prompts import PromptTemplate
 from time import strftime
 today_dt: datetime = datetime.today()
-today_dt_str = today_dt.isoformat().split("T")[0]
-next_sat_dt :str = get_next_weekday(startdate=today_dt_str, weekday=SATURDAY_DOW)
-next_sun_dt :str = get_next_weekday(startdate=today_dt_str, weekday=SUNDAY_DOW)
-
 today_human = strftime("%a, %d %b %Y")
+
+next_sat :datetime = get_next_weekday(startdate=today_dt, weekday=SATURDAY_DOW)
+next_sat_human :str = next_sat.strftime('%A %d %b %Y')
+next_sun :datetime = get_next_weekday(startdate=today_dt, weekday=SUNDAY_DOW)
+next_sun_human : str = next_sun.strftime('%A %d %b %Y')
 
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 openai.api_key = OPENAI_API_KEY
@@ -119,9 +121,19 @@ with st.form("my_form"):
             weather_forecast = weather.run(f"{location},{my_country_code.upper()}")
             print(weather_forecast)
 
-            weather_url = f"http://api.openweathermap.org/data/2.5/forecast?lat={my_city_lat}&lon={my_city_lon}&appid={OPENWEATHERMAP_API_KEY}&units=metric&cnt=3"
+            exclude_parts = "minutely,hourly,alerts"
+            weather_url = f"https://api.openweathermap.org/data/3.0/onecall?lat={my_city_lat}&lon={my_city_lon}&appid={OPENWEATHERMAP_API_KEY}&exclude={exclude_parts}&units=metric"
             weather_data = requests.get(weather_url).json()
-            st.write(weather_data)
+            # st.write(weather_data)
+
+            weather_data_sat = select_weather_prediction_by_date(weather_data.get("daily"), next_sat)
+            weather_data_sun = select_weather_prediction_by_date(weather_data.get("daily"), next_sun)
+
+            # st.write(weather_data_sat)
+            # st.write(weather_data_sun)
+
+            weather_forecast_sat = get_forecast(weather_data_sat)
+            weather_forecast_sun = get_forecast(weather_data_sun)
 
             family_location = f"{location}, {my_country_code.upper()}"
 
@@ -136,7 +148,8 @@ with st.form("my_form"):
 
             Now please suggest activities that we can do next weekend.
 
-            {weather_forecast}
+            The weather forecast for {next_sat_human}: {weather_forecast_sat}
+            The weather forecast for {next_sun_human}: {weather_forecast_sun}
 
             Please take this weather forecast into account when making your suggestions.
 
@@ -145,22 +158,37 @@ with st.form("my_form"):
             """
             prompt = PromptTemplate(
                 template = profile_template,
-                input_variables = ["family_location", "family_composition", "family_selected_interests", "family_openness", "weather_forecast"],
+                input_variables = ["family_location",
+                                   "family_composition",
+                                   "family_selected_interests",
+                                   "family_openness",
+                                   "weather_forecast_sat",
+                                   "weather_forecast_sun",
+                                   "next_sat_human",
+                                   "next_sun_human"],
             )
 
-            final_prompt = prompt.format(family_location=family_location, family_composition=family_composition, family_selected_interests=family_selected_interests, family_openness=family_openness, weather_forecast=weather_forecast)
+            final_prompt = prompt.format(
+                family_location=family_location,
+                family_composition=family_composition,
+                family_selected_interests=family_selected_interests,
+                family_openness=family_openness,
+                weather_forecast_sat=weather_forecast_sat,
+                weather_forecast_sun=weather_forecast_sun,
+                next_sat_human=next_sat_human,
+                next_sun_human=next_sun_human)
 
             print (f"Final prompt: {final_prompt}")
             print (f"family_openness: {family_openness}")
 
-    # st_data = st_folium(m, width=700)
+            # st_data = st_folium(m, width=700)
 
             INITIAL_CHAT_MODEL = [
                 SystemMessage(content="Act as a parent that is highly skilled in organising engaging past time activities for the family. You excell at finding and suggesting a wide range of family activities. You're great at finding both special activities to go do with the family but also in finding fun and creative ways to turn a mundane day in the house into a fun experience. "),
                 HumanMessage(content="Your task is to help me plan a diverse calendar with activities for my family. Make sure to include all ranges of activies. For example, it can be everyday activities at home with the family, or also special activities or events in the neigborhood. You could also include parents-only night out (with babysit?). Mix it up. Know that we are locals, so please do not suggest typical touristic destinations."),
                 AIMessage(content="Tell me more about your family so I can provide suggestions tailored your needs and preferences."),
                 HumanMessage(content=final_prompt),
-                AIMessage(content=f"Great! I'll give you a list of suggestions for the next weekend Saturday {next_sat_dt} and Sunday {next_sun_dt}, taking into account that today is {today_human}. Each suggestion is structured in Markdown. I'll give four suggestions per day."),
+                AIMessage(content=f"Great! I'll give you a list of suggestions for the next weekend {next_sat_human} and {next_sun_human}, taking into account that today is {today_human}. Each suggestion is structured in Markdown. I'll give four suggestions per day."),
             ]
 
             ai_message = chat(INITIAL_CHAT_MODEL)
