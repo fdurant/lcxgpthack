@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import openai
+import pycountry
 from datetime import datetime
 from dictor import dictor
 from langchain.chat_models import ChatOpenAI
@@ -28,15 +29,9 @@ openai.api_key = OPENAI_API_KEY
 # SERPER_API_KEY = st.secrets["SERPER_API_KEY"]
 # os.environ['SERPAPI_API_KEY'] = SERPER_API_KEY
 OPENWEATHERMAP_API_KEY = st.secrets["OPENWEATHERMAP_API_KEY"]
-
-my_country_latlon = get_location()
-my_country_lat = my_country_latlon[0]
-my_country_lon = my_country_latlon[1]
+GMAPS_API_KEY=st.secrets["GMAPS_API_KEY"]
 
 # m = folium.Map(location=my_country_latlon, width=750, height=500, zoom_start=3, control_scale=True)
-
-my_country_code = get_country_code(lat=my_country_lat, lon=my_country_lon)
-my_cities = get_cities(country_code=my_country_code)
 
 weather = OpenWeatherMapAPIWrapper()
 
@@ -45,10 +40,28 @@ chat = ChatOpenAI(temperature=.9, openai_api_key=OPENAI_API_KEY)
 st.title("💡🎉 Weekend wonders")
 st.subheader('Find fun things to do with your family next weekend')
 
+st.header(":world_map: Country")
+
+all_countries = [c.name for c in pycountry.countries]
+my_country = st.selectbox(label="Which country?", options=all_countries)
+
 with st.form("my_form"):
 
-    st.header(":world_map: Location")
-    location = st.selectbox(label='Where do you want to go?', options=my_cities)
+    my_country_latlon = get_location(my_country)
+
+    try:
+        my_country_lat = my_country_latlon[0]
+        my_country_lon = my_country_latlon[1]
+    except Exception:
+        my_country_lat = 40.7127281
+        my_country_lon = -74.0060152
+
+    st.header(":classical_building: City")
+
+    my_country_code = get_country_code(lat=my_country_lat, lon=my_country_lon)
+    my_cities = get_cities(country_code=my_country_code)
+
+    location = st.selectbox(label='Which city?', options=my_cities)
     
     # Profile
     st.header(":family: Who are you?")
@@ -111,7 +124,7 @@ with st.form("my_form"):
 
     if submitted:
 
-        with st.spinner('Looking for good times...'):
+        with st.spinner(f'Looking for good times on {next_sat_human} and {next_sun_human} ...'):
 
             my_city_latlon = get_location(f"{location},{my_country_code}")
             my_city_lat = my_city_latlon[0]
@@ -188,9 +201,56 @@ with st.form("my_form"):
                 HumanMessage(content="Your task is to help me plan a diverse calendar with activities for my family. Make sure to include all ranges of activies. For example, it can be everyday activities at home with the family, or also special activities or events in the neigborhood. You could also include parents-only night out (with babysit?). Mix it up. Know that we are locals, so please do not suggest typical touristic destinations."),
                 AIMessage(content="Tell me more about your family so I can provide suggestions tailored your needs and preferences."),
                 HumanMessage(content=final_prompt),
-                AIMessage(content=f"Great! I'll give you a list of suggestions for the next weekend {next_sat_human} and {next_sun_human}, taking into account that today is {today_human}. Each suggestion is structured in Markdown. I'll give four suggestions per day."),
+                AIMessage(content="Great! I'll give you a list of suggestions formatted in json for the next weekend {next_sat_human} and {next_sun_human}. I'll return four suggestions per day (day of the week in words only). Every suggestion should contain the descriptions of the activities (description), the names of the places (place_name), the url associated with those places.")
             ]
 
             ai_message = chat(INITIAL_CHAT_MODEL)
+            llm_result_str = ai_message.content
+
+            # Clean the content (it can have text before or after the json)
+            if llm_result_str[0] != '{':
+                llm_result_str = llm_result_str[llm_result_str.find('{'):]
+            if llm_result_str[-1] != '}':
+                llm_result_str = llm_result_str[:-len(llm_result_str)+llm_result_str.rindex('}')+1]
+
+            # transform the output to json
+            import ast
+            llm_result_dict = ast.literal_eval(llm_result_str)
+
             st.title("Suggestions for next weekend")
-            st.markdown(ai_message.content)
+            
+            days_of_week = {'Monday': 1,
+                            'Tuesday': 2, 
+                            'Wednesday': 3, 
+                            'Thursday': 4,
+                            'Friday': 5,
+                            'Saturday': 6,
+                            'Sunday': 0}
+
+            from location_finder import find_location_hours
+            activities_with_hours = {}
+            for day, activities in llm_result_dict.items():
+                st.header(day)
+                day_int = 0
+                try:
+                    day_int=days_of_week[day]
+                except KeyError:
+                    pass
+                for act in activities:
+                    hours = find_location_hours(act['place_name'], GMAPS_API_KEY)
+                    if hours:
+                        for h in hours:
+                            activities_with_hours[act['place_name']] = act['place_name']
+                            open = h['open']
+                            if str(open['day']) == str(day_int):
+                                if open['time'] == '0000':
+                                    activities_with_hours[act['place_name']] += " (Always Open)"
+                                else:
+                                    activities_with_hours[act['place_name']] += " (Open time: %s" % open['time']
+                            if 'close' in h:
+                                close = h['close']
+                                if close['day'] == day_int:
+                                    activities_with_hours[act['place_name']] += " - %s)" % close['time']
+                        st.markdown("* " + act['description'].replace(act['place_name'],activities_with_hours[act['place_name']]))
+                    else:
+                        st.markdown("* " + act['description'])
